@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>minimo-mini (Enhanced with BGM, SE & Effects)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        /* CSS変数の定義：アプリ全体で使用するテーマカラーや背景色を一元管理 */
+        :root {
+            --primary-color: #4A90E2;      /* メインカラー(青系) */
+            --correct-color: #2ECC71;      /* 正解時のカラー(緑系) */
+            --incorrect-color: #E74C3C;    /* 不正解時のカラー(赤系) */
+            --bg-color: #F5F7FA;           /* ページ全体の背景色 */
+            --text-color: #333333;         /* 基本のテキストカラー */
+            --container-bg: #FFFFFF;       /* アプリコンテナの背景色 */
+        }
+
+        /* ページ全体のリセットとレイアウト設定。画面中央にアプリを配置 */
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* アプリケーションのメインコンテナ。カード型のデザインを適用 */
+        #app {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            background: var(--container-bg);
+            border-radius: 12px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            padding: 20px 30px;
+            box-sizing: border-box;
+            transition: box-shadow 0.3s ease;
+        }
+
+        /* --- 演出(エフェクト)用のクラス追加 --- */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+        .shake { animation: shake 0.4s ease-in-out; }
+
+        @keyframes flash-correct {
+            0% { box-shadow: 0 0 0px var(--correct-color); }
+            50% { box-shadow: 0 0 30px 10px var(--correct-color); }
+            100% { box-shadow: 0 8px 16px rgba(0,0,0,0.1); }
+        }
+        .flash-correct { animation: flash-correct 0.8s ease-out; }
+
+        .floating-text {
+            position: absolute;
+            font-weight: bold;
+            font-size: 32px;
+            pointer-events: none;
+            animation: floatUp 1.2s ease-out forwards;
+            z-index: 1000;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-80px) scale(1.5); }
+        }
+
+        /* 紙吹雪用キャンバス */
+        #confetti-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            display: none;
+        }
+        /* ------------------------------------- */
+
+        /* 画面ごとのセクション設定(デフォルトは非表示) */
+        .screen {
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            animation: fadeIn 0.3s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* アクティブな画面のみを表示状態(Flexbox)にするクラス */
+        .screen.active {
+            display: flex;
+        }
+
+        /* 見出しの中央揃えとマージン調整 */
+        h1, h2, h3 { text-align: center; margin: 10px 0; }
+
+        /* 汎用ボタンのスタイル設定 */
+        .btn {
+            padding: 12px 24px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            max-width: 300px;
+            transition: all 0.2s; /* ホバー時のアニメーション */
+            margin: 10px auto;
+            display: block;
+            letter-spacing: 1px;
+            position: relative;
+            overflow: hidden;
+        }
+        /* クリックエフェクト用 */
+        .btn:active { transform: scale(0.95); }
+        .btn:hover { opacity: 0.8; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        
+        /* プライマリーボタン(青色) */
+        .btn.primary { background-color: var(--primary-color); color: white; }
+        /* セカンダリーボタン(グレー系) */
+        .btn.secondary { background-color: #ddd; color: #333; }
+        /* 無効化(disabled)状態のボタンスタイル */
+        .btn:disabled { cursor: not-allowed; opacity: 0.5; transform: none; box-shadow: none; }
+
+        /* ゲーム画面上部のヘッダー情報(問題番号・難易度・終了ボタン)のレイアウト */
+        .header-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        /* 問題番号と難易度を横並びにするコンテナ */
+        .header-left { display: flex; gap: 15px; align-items: center; }
+
+        /* 終了(バツ)ボタン、サウンドボタンのスタイル設定 */
+        .icon-btn-header {
+            background: none; border: none; cursor: pointer; color: #999;
+            padding: 4px; display: flex; align-items: center; justify-content: center;
+            transition: color 0.2s, transform 0.2s;
+        }
+        #btn-exit:hover { color: var(--incorrect-color); transform: rotate(90deg); }
+        #btn-sound:hover { color: var(--primary-color); transform: scale(1.1); }
+        
+        /* サウンドOFF時のスタイル */
+        .icon-btn-header.muted { color: #ccc; }
+
+        .header-right { display: flex; gap: 10px; }
+
+        /* タイマーの背景バー設定 */
+        .timer-container {
+            width: 100%; height: 10px; background-color: #eee;
+            border-radius: 5px; overflow: hidden; margin-bottom: 5px;
+        }
+
+        /* タイマーの進行度を示すバー。時間と共に幅が縮むアニメーションを設定 */
+        #timer-bar {
+            height: 100%; width: 100%; background-color: var(--primary-color);
+            transition: width 0.1s linear, background-color 0.3s;
+        }
+        #timer-bar.warning { background-color: var(--incorrect-color); }
+
+        /* 残り時間の数値表示テキストの設定 */
+        #timer-text {
+            width: 100%; text-align: right; font-size: 14px;
+            font-weight: bold; color: #666; margin: 0 0 5px 0;
+            transition: color 0.3s;
+        }
+        #timer-text.warning { color: var(--incorrect-color); animation: pulse 1s infinite; }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+
+        /* 問題文と長文(パッセージ)を囲むコンテナ */
+        .question-container {
+            margin: 0 0 5px 0; text-align: center;
+            transition: font-size 0.2s; /* フォントサイズ変更時のアニメーション */
+            white-space: pre-wrap;      /* 改行を反映させる */
+            width: 100%;
+        }
+
+        /* 読解問題などの本文テキストのスタイル設定 */
+        #passage-text {
+            font-weight: normal; font-size: 16px; margin: 0 0 5px 0;
+            text-align: left; line-height: 1.4; background: #f9f9f9;
+            padding: 10px 15px; border-radius: 8px;
+            border-left: 4px solid var(--primary-color); /* 左側の青い装飾線 */
+        }
+
+        /* 問題の質問文テキスト */
+        #question-text { font-weight: bold; font-size: 16px; margin: 5px 0; }
+
+        /* 選択肢ボタンを縦に並べるグリッドコンテナ */
+        .choices-grid { display: flex; flex-direction: column; gap: 8px; width: 100%; margin-bottom: 8px; }
+
+        /* 各選択肢ボタンの基本スタイル設定 */
+        .choice-btn {
+            padding: 12px 15px; font-size: 15px; border: 2px solid #ddd;
+            background: white; border-radius: 8px; cursor: pointer;
+            transition: all 0.2s; width: 100%; text-align: left; line-height: 1.3;
+        }
+
+        /* 選択肢ホバー時のスタイル(無効状態以外) */
+        .choice-btn:hover:not(:disabled) { border-color: var(--primary-color); transform: translateX(5px); }
+        /* 正解時の選択肢ボタンスタイル(強制適用) */
+        .choice-btn.correct {
+            background-color: var(--correct-color) !important; color: white !important;
+            border-color: var(--correct-color) !important; animation: pop-in 0.3s ease;
+        }
+        /* 不正解時の選択肢ボタンスタイル(強制適用) */
+        .choice-btn.incorrect {
+            background-color: var(--incorrect-color) !important; color: white !important;
+            border-color: var(--incorrect-color) !important;
+        }
+
+        @keyframes pop-in {
+            0% { transform: scale(0.95); }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); }
+        }
+
+        /* 正誤判定結果を表示するコンテナのスタイル設定 */
+        #feedback-container {
+            text-align: center; width: 100%; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; gap: 8px;
+        }
+
+        /* フィードバックコンテナの非表示状態。レイアウトを崩さずに不可視化 */
+        #feedback-container.hidden { display: flex !important; visibility: hidden; }
+
+        /* 正誤結果テキスト(Correct/Incorrect)のスタイル */
+        #feedback-result { font-size: 24px; margin: 0; font-weight: 800; }
+
+        /* 「Next」ボタンの中央配置 */
+        #btn-next { margin: 0 auto; }
+
+        /* アイコンボタン(カメラ、フォントサイズ変更)の共通スタイル */
+        .icon-btn {
+            background: none; border: none; cursor: pointer; padding: 8px;
+            z-index: 10; display: flex; align-items: center; justify-content: center; color: #333;
+            transition: transform 0.2s;
+        }
+        .icon-btn:hover { opacity: 0.6; transform: scale(1.1); }
+
+        /* 画像保存(クリップボードコピー)ボタンの配置位置 */
+        #btn-save-image { position: absolute; bottom: 15px; right: 15px; display: none; }
+
+        /* フォントサイズ変更コントロールの配置位置 */
+        #font-size-controls {
+            position: absolute; bottom: 15px; left: 15px; display: none; gap: 8px; z-index: 10;
+        }
+
+        /* フォント変更ボタン独自のスタイル */
+        .font-btn {
+            background-color: #eee; border: 1px solid #ccc; border-radius: 6px;
+            transition: background-color 0.2s, transform 0.2s;
+        }
+        .font-btn:hover { background-color: #ddd; }
+
+        /* Readme(説明書)のコンテンツ表示エリア設定 */
+        #readme-content {
+            width: 100%; line-height: 1.6; margin-bottom: 20px; text-align: left;
+            white-space: pre-wrap; background: #f9f9f9; padding: 15px;
+            border-radius: 8px; max-height: 400px; overflow-y: auto; /* 長い場合はスクロールバーを表示 */
+        }
+
+        /* 最終スコア表示部分のレイアウト */
+        .score-display { display: flex; flex-direction: column; align-items: center; margin: 20px 0 40px 0; }
+
+        /* "Score"というラベルのスタイル */
+        .score-label { font-size: 24px; color: #555; font-weight: bold; }
+
+        /* 実際のスコア数値のスタイル設定 */
+        #final-rate {
+            font-size: 80px; color: var(--primary-color); font-weight: bold;
+            line-height: 1; margin-top: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* 完全に非表示にするための汎用クラス */
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <!-- BGMオーディオ要素 (ローカルまたは任意のURLを指定。ここではプレースホルダーURL) -->
+    <!-- BGMファイル(bgm.mp3)を同階層に配置するか、srcを変更してください -->
+    <audio id="bgm-audio" loop preload="auto">
+        <source src="https://assets.mixkit.co/active_storage/sfx/135/135-preview.mp3" type="audio/mpeg">
+    </audio>
+
+    <canvas id="confetti-canvas"></canvas>
+
+    <div id="app">
+        <section id="screen-home" class="screen active">
+            <h1>minimo-mini</h1>
+            <p style="color:#666; font-size: 14px; text-align: center;">Enhanced Version with Sound & Effects</p>
+            <button id="btn-start" class="btn primary">Start</button>
+            <button id="btn-readme" class="btn secondary">Readme</button>
+        </section>
+
+        <section id="screen-game" class="screen">
+            <div class="header-info">
+                <div class="header-left">
+                    <span id="question-counter">Question: 1 / 30</span>
+                    <span id="difficulty-display"></span>
+                </div>
+                <div class="header-right">
+                    <!-- サウンドON/OFFトグルボタン -->
+                    <button id="btn-sound" class="icon-btn-header" title="Toggle Sound">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        </svg>
+                    </button>
+                    <button id="btn-exit" class="icon-btn-header" title="Exit and view score">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="timer-container">
+                <div id="timer-bar"></div>
+            </div>
+            <div id="timer-text">30.0</div>
+
+            <div class="question-container">
+                <p id="passage-text">Loading...</p>
+                <p id="question-text"></p>
+            </div>
+
+            <div id="choices-container" class="choices-grid">
+            </div>
+
+            <div id="feedback-container" class="hidden">
+                <h2 id="feedback-result"></h2>
+                <button id="btn-next" class="btn primary">Next</button>
+            </div>
+        </section>
+
+        <div id="font-size-controls">
+            <button id="btn-font-large" class="icon-btn font-btn" title="Text larger">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    <line x1="11" y1="8" x2="11" y2="14"></line>
+                    <line x1="8" y1="11" x2="14" y2="11"></line>
+                </svg>
+            </button>
+            <button id="btn-font-small" class="icon-btn font-btn" title="Text smaller">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="11" cy="11" r="8"></circle>
+                    <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    <line x1="8" y1="11" x2="14" y2="11"></line>
+                </svg>
+            </button>
+        </div>
+
+        <button id="btn-save-image" class="icon-btn" title="Copy image">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                <circle cx="12" cy="13" r="4"></circle>
+            </svg>
+        </button>
+
+        <section id="screen-result" class="screen">
+            <h2>Result</h2>
+            <div class="score-display">
+                <span class="score-label">Score</span>
+                <span id="final-rate">0</span>
+            </div>
+            <button id="btn-home-from-result" class="btn primary">Home</button>
+        </section>
+
+        <section id="screen-readme" class="screen">
+            <h2>Readme</h2>
+            <div id="readme-content">Loading readme.txt ...</div>
+            <button id="btn-home-from-readme" class="btn primary">Home</button>
+        </section>
+    </div>
+
+    <script>
+        // --- サウンド(Web Audio API & BGM)の設定 ---
+        let audioCtx;
+        let isSoundEnabled = true;
+        const bgmAudio = document.getElementById('bgm-audio');
+        bgmAudio.volume = 0.3; // BGM音量を控えめに
+
+        // BGMと効果音のトグル
+        document.getElementById('btn-sound').addEventListener('click', (e) => {
+            e.stopPropagation();
+            isSoundEnabled = !isSoundEnabled;
+            const btn = document.getElementById('btn-sound');
+            if (isSoundEnabled) {
+                btn.classList.remove('muted');
+                btn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>`;
+                if(document.getElementById('screen-game').classList.contains('active')) {
+                    bgmAudio.play().catch(e => console.log("BGM Play prevented", e));
+                }
+            } else {
+                btn.classList.add('muted');
+                btn.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>`;
+                bgmAudio.pause();
+            }
+        });
+
+        // 簡易シンセサイザー (SE生成)
+        function playTone(freq, type, duration, vol=0.1) {
+            if (!isSoundEnabled) return;
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            
+            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        // イベントに応じたSEの再生
+        function playSE(type) {
+            if (!isSoundEnabled) return;
+            switch(type) {
+                case 'click':
+                    playTone(400, 'sine', 0.1, 0.1);
+                    break;
+                case 'correct':
+                    // ピン・ポン
+                    playTone(600, 'sine', 0.15, 0.2);
+                    setTimeout(() => playTone(800, 'sine', 0.3, 0.2), 150);
+                    break;
+                case 'incorrect':
+                    // ブー
+                    playTone(150, 'sawtooth', 0.4, 0.2);
+                    break;
+                case 'timeout':
+                    // タラララーン (下降)
+                    [400, 350, 300, 200].forEach((freq, i) => {
+                        setTimeout(() => playTone(freq, 'sawtooth', 0.2, 0.2), i * 150);
+                    });
+                    break;
+                case 'tick':
+                    // 時計のチクタク(残り少ない時)
+                    playTone(800, 'square', 0.05, 0.05);
+                    break;
+                case 'fanfare':
+                    // 終了時のファンファーレ
+                    [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+                        setTimeout(() => playTone(freq, 'sine', 0.2, 0.2), i * 150);
+                    });
+                    setTimeout(() => playTone(1046.50, 'sine', 0.6, 0.2), 600);
+                    break;
+            }
+        }
+
+        // --- 演出(紙吹雪)の設定 ---
+        let confettiAnimationFrame;
+        function startConfetti() {
+            const canvas = document.getElementById('confetti-canvas');
+            canvas.style.display = 'block';
+            const ctx = canvas.getContext('2d');
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            const pieces = [];
+            const colors = ['#f44336', '#4caf50', '#2196f3', '#ffeb3b', '#00bcd4', '#e91e63'];
+            for(let i=0; i<150; i++) {
+                pieces.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height - canvas.height,
+                    w: Math.random() * 10 + 5,
+                    h: Math.random() * 10 + 5,
+                    c: colors[Math.floor(Math.random() * colors.length)],
+                    dy: Math.random() * 3 + 2,
+                    dx: Math.random() * 2 - 1,
+                    rot: Math.random() * 360,
+                    dRot: Math.random() * 5 - 2.5
+                });
+            }
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                pieces.forEach(p => {
+                    ctx.save();
+                    ctx.translate(p.x, p.y);
+                    ctx.rotate(p.rot * Math.PI / 180);
+                    ctx.fillStyle = p.c;
+                    ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h);
+                    ctx.restore();
+                    p.y += p.dy;
+                    p.x += p.dx;
+                    p.rot += p.dRot;
+                    if(p.y > canvas.height) p.y = -20;
+                });
+                confettiAnimationFrame = requestAnimationFrame(draw);
+            }
+            draw();
+        }
+        function stopConfetti() {
+            cancelAnimationFrame(confettiAnimationFrame);
+            const canvas = document.getElementById('confetti-canvas');
+            canvas.style.display = 'none';
+        }
+
+        // --- フローティングスコア演出 ---
+        function showFloatingText(text, color, targetElement) {
+            const floater = document.createElement('div');
+            floater.textContent = text;
+            floater.className = 'floating-text';
+            floater.style.color = color;
+            const rect = targetElement.getBoundingClientRect();
+            // 要素の上部中央付近に表示
+            floater.style.left = (rect.left + rect.width / 2 - 20) + 'px';
+            floater.style.top = (rect.top - 20) + 'px';
+            document.body.appendChild(floater);
+            // アニメーション完了後にDOMから削除
+            setTimeout(() => floater.remove(), 1200);
+        }
+
+        // グローバル変数の定義
+        let allQuestions = [];          
+        let currentQuestions = [];      
+        let currentQIndex = 0;          
+        let timerInterval;              
+        let timeLeft;                   
+        let currentTrialHistory = [];   
+        let currentFontSize = parseInt(localStorage.getItem('toeicFontSize')) || 16;
+
+        const screens = {
+            home: document.getElementById('screen-home'),
+            game: document.getElementById('screen-game'),
+            result: document.getElementById('screen-result'),
+            readme: document.getElementById('screen-readme')
+        };
+
+        // 初期化処理関数
+        async function init() {
+            applyFontSize(); 
+            
+            try {
+                const res = await fetch('questions.json');
+                if (res.ok) {
+                    allQuestions = await res.json();
+                } else {
+                    console.warn("Failed to load questions.json, loading dummy data for preview.");
+                    loadDummyData();
+                }
+            } catch (e) {
+                console.warn("Error loading questions.json (CORS/File protocol?), loading dummy data.", e);
+                loadDummyData();
+            }
+
+            fetch('readme.txt')
+                .then(res => res.ok ? res.text() : "readme.txt not found. (Place readme.txt in the same directory)")
+                .then(text => { document.getElementById('readme-content').textContent = text; })
+                .catch(() => { document.getElementById('readme-content').textContent = "Loading error"; });
+
+            // 各種ボタンにクリックイベントリスナーを登録
+            document.getElementById('btn-start').addEventListener('click', () => {
+                playSE('click');
+                startGame();
+            });
+            document.getElementById('btn-readme').addEventListener('click', () => { playSE('click'); switchScreen('readme'); });
+            document.getElementById('btn-home-from-result').addEventListener('click', () => { playSE('click'); switchScreen('home'); stopConfetti(); });
+            document.getElementById('btn-home-from-readme').addEventListener('click', () => { playSE('click'); switchScreen('home'); });
+            
+            document.getElementById('btn-next').addEventListener('click', (e) => {
+                e.stopPropagation();
+                playSE('click');
+                nextQuestion();
+            });
+            
+            document.getElementById('btn-exit').addEventListener('click', (e) => {
+                e.stopPropagation();
+                playSE('click');
+                if (confirm("Are you sure you want to quit and view your score? \n(Unanswered questions will be scored as 0 points.)")) {
+                    clearInterval(timerInterval);
+                    finishGame();
+                }
+            });
+
+            // 「カメラ」ボタン：アプリ画面を画像化
+            document.getElementById('btn-save-image').addEventListener('click', function(e) {
+                e.stopPropagation();
+                playSE('click');
+                try {
+                    const btnCamera = document.getElementById('btn-save-image');
+                    const btnFonts = document.getElementById('font-size-controls');
+                    btnCamera.style.display = 'none';
+                    btnFonts.style.display = 'none';
+
+                    const captureTarget = document.getElementById('app');
+                    const blobPromise = html2canvas(captureTarget, { backgroundColor: "#ffffff" }).then(canvas => {
+                        btnCamera.style.display = 'flex';
+                        btnFonts.style.display = 'flex';
+                        return new Promise(resolve => {
+                            canvas.toBlob(blob => resolve(blob));
+                        });
+                    });
+
+                    const item = new ClipboardItem({ "image/png": blobPromise });
+                    navigator.clipboard.write([item]).then(() => {
+                        alert("Copied to clipboard.");
+                    }).catch(err => {
+                        console.error("Failed to copy:", err);
+                        alert("Failed to copy due to browser restrictions.");
+                        btnCamera.style.display = 'flex';
+                        btnFonts.style.display = 'flex';
+                    });
+                } catch (err) {
+                    console.error("Capture error:", err);
+                    document.getElementById('btn-save-image').style.display = 'flex';
+                    document.getElementById('font-size-controls').style.display = 'flex';
+                }
+            });
+
+            document.getElementById('btn-font-large').addEventListener('click', (e) => {
+                e.stopPropagation(); playSE('click');
+                currentFontSize = Math.min(currentFontSize + 4, 30);
+                applyFontSize();
+            });
+            document.getElementById('btn-font-small').addEventListener('click', (e) => {
+                e.stopPropagation(); playSE('click');
+                currentFontSize = Math.max(currentFontSize - 4, 12);
+                applyFontSize();
+            });
+        }
+
+        function loadDummyData() {
+            // ローカルでテスト動作させるためのダミーデータ
+            const dummy = [];
+            for (let i = 1; i <= 5; i++) {
+                for (let j = 0; j < 10; j++) {
+                    dummy.push({
+                        text: `Dummy Passage for difficulty ${i}. This is question ${j}.`,
+                        question: `What is the difficulty of this dummy question?`,
+                        choices: ["1", "2", "3", "4", "5"],
+                        answer: i - 1,
+                        difficulty: i
+                    });
+                }
+            }
+            allQuestions = dummy;
+        }
+
+        function applyFontSize() {
+            const passageText = document.getElementById('passage-text');
+            passageText.style.fontSize = `${currentFontSize}px`;
+            localStorage.setItem('toeicFontSize', currentFontSize);
+        }
+
+        function switchScreen(screenName) {
+            Object.values(screens).forEach(s => s.classList.remove('active'));
+            screens[screenName].classList.add('active');
+
+            document.getElementById('btn-save-image').style.display = 'none';
+            if (screenName === 'game') {
+                document.getElementById('font-size-controls').style.display = 'flex';
+            } else {
+                document.getElementById('font-size-controls').style.display = 'none';
+                bgmAudio.pause(); // ゲーム画面以外はBGM停止
+                bgmAudio.currentTime = 0;
+            }
+        }
+
+        function startGame() {
+            // ユーザーインタラクション時にAudioContextを初期化・再開
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            let selected = [];
+            for (let i = 1; i <= 5; i++) {
+                let diffQuestions = allQuestions.filter(q => q.difficulty === i);
+                if (diffQuestions.length < 6) {
+                    alert(`Difficulty ${i} does not have enough questions (currently ${diffQuestions.length}). At least 6 questions are required.`);
+                    return;
+                }
+                let shuffledDiff = diffQuestions.sort(() => 0.5 - Math.random());
+                selected = selected.concat(shuffledDiff.slice(0, 6));
+            }
+
+            currentQuestions = selected.sort((a, b) => a.difficulty - b.difficulty);
+            currentQIndex = 0;
+            currentTrialHistory = [];
+
+            switchScreen('game');
+            // BGM再生
+            if (isSoundEnabled) {
+                bgmAudio.play().catch(e => console.log("BGM autoplay prevented", e));
+            }
+
+            displayQuestion();
+        }
+
+        function displayQuestion() {
+            const q = currentQuestions[currentQIndex];
+            
+            document.getElementById('question-counter').textContent = `Question: ${currentQIndex + 1} / 30`;
+            document.getElementById('difficulty-display').textContent = `Level: ${q.difficulty}`;
+
+            document.getElementById('passage-text').textContent = q.text;
+            document.getElementById('question-text').textContent = q.question;
+            document.getElementById('btn-save-image').style.display = 'none';
+
+            const choicesContainer = document.getElementById('choices-container');
+            choicesContainer.innerHTML = '';
+
+            const originalChoices = [...q.choices];
+            const correctAnswerStr = originalChoices[q.answer];
+            const shuffledChoices = [...originalChoices].sort(() => Math.random() - 0.5);
+
+            shuffledChoices.forEach((choiceText) => {
+                const btn = document.createElement('button');
+                btn.textContent = choiceText;
+                btn.className = 'choice-btn';
+                btn.onclick = () => handleAnswer(choiceText, correctAnswerStr, q);
+                choicesContainer.appendChild(btn);
+            });
+
+            document.getElementById('feedback-container').classList.add('hidden');
+            
+            // UIのリセット(警告色など)
+            const timerBar = document.getElementById('timer-bar');
+            const timerText = document.getElementById('timer-text');
+            timerBar.classList.remove('warning');
+            timerText.classList.remove('warning');
+
+            startTimer(correctAnswerStr, q);
+        }
+
+        function startTimer(correctAnswerStr, q) {
+            const maxTime = 30.0; 
+            timeLeft = maxTime;
+
+            const timerBar = document.getElementById('timer-bar');
+            const timerText = document.getElementById('timer-text');
+
+            timerBar.style.width = '100%';
+            timerText.textContent = timeLeft.toFixed(1);
+
+            clearInterval(timerInterval);
+            
+            let lastTick = Math.ceil(timeLeft);
+
+            timerInterval = setInterval(() => {
+                timeLeft -= 0.1;
+                timerBar.style.width = `${(timeLeft / maxTime) * 100}%`;
+                timerText.textContent = Math.max(0, timeLeft).toFixed(1);
+
+                // 残り5秒以下で警告色＆チクタク音
+                if (timeLeft <= 5.0 && timeLeft > 0) {
+                    timerBar.classList.add('warning');
+                    timerText.classList.add('warning');
+                    let currentTick = Math.ceil(timeLeft);
+                    if (currentTick !== lastTick) {
+                        playSE('tick');
+                        lastTick = currentTick;
+                    }
+                }
+
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    handleAnswer(null, correctAnswerStr, q);
+                }
+            }, 100);
+        }
+
+        function handleAnswer(selectedText, correctText, q) {
+            clearInterval(timerInterval);
+            const isCorrect = selectedText === correctText;
+            const btns = document.querySelectorAll('.choice-btn');
+            const appContainer = document.getElementById('app');
+            const questionCounter = document.getElementById('question-counter');
+
+            // 演出と効果音のトリガー
+            if (selectedText === null) {
+                // タイムアウト
+                playSE('timeout');
+                appContainer.classList.add('shake');
+                setTimeout(() => appContainer.classList.remove('shake'), 400);
+            } else if (isCorrect) {
+                // 正解
+                playSE('correct');
+                appContainer.classList.add('flash-correct');
+                setTimeout(() => appContainer.classList.remove('flash-correct'), 800);
+                
+                // フローティングスコア加算演出
+                const points = 30 + q.difficulty;
+                showFloatingText(`+${points}`, 'var(--correct-color)', questionCounter);
+            } else {
+                // 不正解
+                playSE('incorrect');
+                appContainer.classList.add('shake');
+                setTimeout(() => appContainer.classList.remove('shake'), 400);
+            }
+
+            btns.forEach((btn) => {
+                btn.disabled = true;
+                if (btn.textContent === correctText) {
+                    btn.classList.add('correct');
+                } else if (btn.textContent === selectedText) {
+                    btn.classList.add('incorrect');
+                }
+            });
+
+            currentTrialHistory.push({
+                difficulty: q.difficulty,
+                isCorrect: isCorrect
+            });
+
+            const feedbackResult = document.getElementById('feedback-result');
+            if (selectedText === null) {
+                feedbackResult.textContent = "Time out... (Incorrect)";
+                feedbackResult.style.color = "var(--incorrect-color)";
+            } else {
+                feedbackResult.textContent = isCorrect ? "Correct!" : "Incorrect";
+                feedbackResult.style.color = isCorrect ? "var(--correct-color)" : "var(--incorrect-color)";
+            }
+
+            document.getElementById('feedback-container').classList.remove('hidden');
+            document.getElementById('btn-save-image').style.display = 'flex';
+        }
+
+        function nextQuestion() {
+            currentQIndex++; 
+            if (currentQIndex < currentQuestions.length) {
+                displayQuestion();
+            } else {
+                finishGame();
+            }
+        }
+
+        function finishGame() {
+            bgmAudio.pause(); // ゲーム終了時はBGM停止
+
+            let earnedPoints = 0;
+            currentTrialHistory.forEach(record => {
+                if (record.isCorrect) {
+                    const point = 30 + record.difficulty;
+                    earnedPoints += point;
+                }
+            });
+
+            // スコアをカウントアップする演出
+            const finalRateElement = document.getElementById('final-rate');
+            finalRateElement.textContent = '0';
+            switchScreen('result');
+
+            // 終了時のファンファーレ＆紙吹雪
+            playSE('fanfare');
+            startConfetti();
+
+            let currentVal = 0;
+            const duration = 1500; // 1.5秒でカウントアップ
+            const increment = earnedPoints / (duration / 20); // 20msごとの増加量
+            
+            const counterInterval = setInterval(() => {
+                currentVal += increment;
+                if (currentVal >= earnedPoints) {
+                    currentVal = earnedPoints;
+                    clearInterval(counterInterval);
+                    // カウントアップ終了時に文字をポップさせる
+                    finalRateElement.style.animation = 'pop-in 0.3s ease';
+                }
+                finalRateElement.textContent = Math.floor(currentVal);
+            }, 20);
+        }
+
+        window.onload = init;
+    </script>
+</body>
+</html>
