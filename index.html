@@ -1,287 +1,383 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>minimo-ww</title>
-<style>
-  :root {
-    --primary: #4a90e2;
-    --secondary: #f39c12;
-    --bg-color: #f7f9fc;
-    --text-color: #333;
-    --card-bg: #fff;
-  }
-  
-  body {
-    margin: 0;
-    padding: 0;
-    font-family: 'Helvetica Neue', Arial, sans-serif;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    overflow: hidden;
-  }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>minimo-ww</title>
+    <style>
+        /* CSS変数の定義 */
+        :root {
+            --primary-color: #4A90E2;
+            --correct-color: #2ECC71;
+            --incorrect-color: #E74C3C;
+            --bg-color: #F5F7FA;
+            --text-color: #333333;
+            --container-bg: #FFFFFF;
+        }
 
-  .screen {
-    display: none;
-    width: 100%;
-    max-width: 600px;
-    height: 100%;
-    background: var(--card-bg);
-    box-shadow: 0 0 20px rgba(0,0,0,0.1);
-    flex-direction: column;
-    position: relative;
-  }
+        /* ページ全体のリセットとスマホ1画面収容の設定 */
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh; /* 1画面に収める */
+            overflow: hidden; /* スクロール禁止 */
+        }
 
-  .screen.active {
-    display: flex;
-    animation: fadeIn 0.3s ease-in-out;
-  }
+        /* アプリコンテナ */
+        #app {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            max-width: 600px;
+            background: var(--container-bg);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
 
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
-  }
+        /* 画面ごとのセクション設定 */
+        .screen {
+            display: none;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            padding: 15px 20px;
+            box-sizing: border-box;
+        }
+        .screen.active {
+            display: flex;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-  /* Header */
-  .header {
-    background: var(--primary);
-    color: white;
-    padding: 15px 20px;
-    text-align: center;
-    font-size: 1.5em;
-    font-weight: bold;
-    letter-spacing: 2px;
-  }
+        h1, h2 { text-align: center; margin: 10px 0; }
 
-  /* Content area */
-  .content {
-    flex: 1;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    overflow-y: auto;
-  }
+        /* ボタン共通スタイル */
+        .btn {
+            padding: 12px 20px;
+            font-size: 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            max-width: 300px;
+            transition: transform 0.1s, opacity 0.2s;
+            margin: 10px auto;
+            display: block;
+            letter-spacing: 1px;
+            font-weight: bold;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn.primary { background-color: var(--primary-color); color: white; }
+        .btn.secondary { background-color: #ddd; color: #333; }
+        .btn:disabled { cursor: not-allowed; opacity: 0.5; }
 
-  /* Buttons */
-  button {
-    background-color: var(--primary);
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 15px 20px;
-    margin: 10px 0;
-    font-size: 1.1em;
-    cursor: pointer;
-    width: 100%;
-    max-width: 400px;
-    transition: transform 0.1s, background-color 0.2s;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-  }
+        /* ゲーム画面のヘッダー */
+        .header-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .header-left {
+            display: flex;
+            flex-direction: column;
+        }
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .icon-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            color: #555;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
 
-  button:active {
-    transform: scale(0.98);
-  }
+        /* タイマー */
+        .timer-container {
+            width: 100%;
+            height: 6px;
+            background-color: #eee;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 5px;
+        }
+        #timer-bar {
+            height: 100%;
+            width: 100%;
+            background-color: var(--primary-color);
+            transition: width 0.1s linear, background-color 0.3s;
+        }
+        #timer-text {
+            text-align: right;
+            font-size: 12px;
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 10px;
+        }
 
-  button:hover {
-    background-color: #357abd;
-  }
+        /* 問題文（英単語）エリア */
+        .question-container {
+            flex: 1; /* 余白を埋める */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 80px;
+            margin-bottom: 15px;
+        }
+        #question-word {
+            font-size: clamp(32px, 8vw, 48px);
+            font-weight: bold;
+            color: var(--primary-color);
+            text-align: center;
+            word-break: break-word;
+        }
 
-  /* Game Screen Specifics */
-  .status-bar {
-    display: flex;
-    justify-content: space-between;
-    width: 100%;
-    max-width: 400px;
-    margin-bottom: 20px;
-    font-size: 1.2em;
-    font-weight: bold;
-    color: var(--secondary);
-  }
+        /* 選択肢（英英訳）グリッド */
+        .choices-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 10px;
+            flex: 2;
+        }
+        .choice-btn {
+            flex: 1; /* 高さを均等に */
+            padding: 10px 15px;
+            font-size: clamp(13px, 3.5vw, 15px);
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            line-height: 1.3;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+        }
+        .choice-btn:active { transform: scale(0.98); }
 
-  .question-box {
-    font-size: 2.5em;
-    font-weight: bold;
-    margin-bottom: 30px;
-    text-align: center;
-    color: var(--primary);
-  }
+        /* フィードバック演出 */
+        #feedback-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+            z-index: 100;
+        }
+        .feedback-mark {
+            font-size: 120px;
+            font-weight: bold;
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .feedback-mark.show {
+            opacity: 0.9;
+            transform: scale(1);
+        }
+        .mark-correct { color: var(--correct-color); }
+        .mark-incorrect { color: var(--incorrect-color); }
 
-  .choice-btn {
-    background-color: white;
-    color: var(--text-color);
-    border: 2px solid var(--primary);
-    text-align: left;
-    font-size: 1em;
-    line-height: 1.4;
-  }
-  .choice-btn:hover {
-    background-color: #ebf3fa;
-  }
+        /* スコア画面 */
+        .score-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 30px 0;
+            flex: 1;
+        }
+        .score-label { font-size: 20px; color: #555; font-weight: bold; }
+        #final-score { font-size: 64px; color: var(--primary-color); font-weight: bold; line-height: 1; margin: 10px 0; }
+        #score-comment { font-size: 16px; color: #666; text-align: center; }
 
-  /* Feedback Animation */
-  .feedback {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%) scale(0);
-    font-size: 10em;
-    font-weight: bold;
-    opacity: 0;
-    pointer-events: none;
-    transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    z-index: 10;
-  }
-
-  .feedback.show {
-    transform: translate(-50%, -50%) scale(1);
-    opacity: 1;
-  }
-
-  .feedback.correct { color: #2ecc71; }
-  .feedback.wrong { color: #e74c3c; }
-
-  /* Results */
-  .result-score {
-    font-size: 4em;
-    color: var(--secondary);
-    margin: 20px 0;
-    font-weight: bold;
-  }
-</style>
+        .hidden { display: none !important; }
+    </style>
 </head>
 <body>
+    <div id="app">
+        <!-- ホーム画面 -->
+        <section id="screen-home" class="screen active" style="justify-content: center;">
+            <h1 style="font-size: 36px; color: var(--primary-color); margin-bottom: 5px;">minimo-ww</h1>
+            <p style="text-align: center; color: #666; margin-bottom: 40px; font-weight: bold;">English Definition Quiz</p>
+            <button id="btn-start" class="btn primary">Game Start</button>
+        </section>
 
-  <!-- Title Screen -->
-  <div id="title-screen" class="screen active">
-    <div class="header">minimo-ww</div>
-    <div class="content">
-      <h2 style="color: #666; margin-bottom: 40px;">Guess the Meaning!</h2>
-      <button onclick="startApp()">START</button>
-      <p style="font-size: 0.8em; color: #999; margin-top: 20px;">※タップするとBGMが鳴ります</p>
-    </div>
-  </div>
+        <!-- ゲーム画面 -->
+        <section id="screen-game" class="screen">
+            <div class="header-info">
+                <div class="header-left">
+                    <span id="question-counter">Q: 1 / 30</span>
+                    <span id="difficulty-display">Level: 1</span>
+                </div>
+                <div class="header-right">
+                    <button id="btn-sound" class="icon-btn" title="Toggle Sound">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                        </svg>
+                    </button>
+                    <button id="btn-exit" class="icon-btn" title="Exit">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="timer-container"><div id="timer-bar"></div></div>
+            <div id="timer-text">30.0</div>
 
-  <!-- Level Select Screen -->
-  <div id="level-screen" class="screen">
-    <div class="header">Select Level</div>
-    <div class="content">
-      <button onclick="selectLevel(1)">Level 1 (Beginner)</button>
-      <button onclick="selectLevel(2)">Level 2 (Elementary)</button>
-      <button onclick="selectLevel(3)">Level 3 (Intermediate)</button>
-      <button onclick="selectLevel(4)">Level 4 (Advanced)</button>
-      <button onclick="selectLevel(5)">Level 5 (Master)</button>
-    </div>
-  </div>
+            <div class="question-container">
+                <div id="question-word">Loading...</div>
+            </div>
 
-  <!-- Game Screen -->
-  <div id="game-screen" class="screen">
-    <div class="header" id="game-header">Level 1</div>
-    <div class="content">
-      <div class="status-bar">
-        <span id="q-counter">Q: 1/6</span>
-        <span id="score-display">Score: 0</span>
-      </div>
-      <div class="question-box" id="question-word">Word</div>
-      <div id="choices-container" style="width: 100%; display: flex; flex-direction: column; align-items: center;">
-        <!-- Choices will be injected here -->
-      </div>
-    </div>
-    <div id="feedback" class="feedback">⭕️</div>
-  </div>
+            <div id="choices-container" class="choices-grid"></div>
 
-  <!-- Result Screen -->
-  <div id="result-screen" class="screen">
-    <div class="header">Result</div>
-    <div class="content">
-      <h2>Your Score</h2>
-      <div class="result-score" id="final-score">0 / 6</div>
-      <p id="result-message" style="margin-bottom: 30px; font-size: 1.2em;"></p>
-      <button onclick="showScreen('level-screen')">Select Level</button>
-      <button onclick="showScreen('title-screen'); stopBGM();" style="background-color: #95a5a6;">Back to Title</button>
+            <!-- フィードバック演出用 -->
+            <div id="feedback-overlay">
+                <div id="feedback-mark" class="feedback-mark"></div>
+            </div>
+        </section>
+
+        <!-- リザルト画面 -->
+        <section id="screen-result" class="screen">
+            <h2>Result</h2>
+            <div class="score-display">
+                <span class="score-label">Total Score</span>
+                <span id="final-score">0</span>
+                <span class="score-label" style="font-size:14px; margin-top:5px;">/ 990 pts</span>
+                <p id="score-comment" style="margin-top:20px;"></p>
+            </div>
+            <button id="btn-home-from-result" class="btn primary">Back to Home</button>
+        </section>
     </div>
-  </div>
 
 <script>
-  // --- Audio System (Web Audio API) ---
-  let audioCtx = null;
-  let bgmInterval = null;
+/* =========================================================
+   サウンド管理 (BGM / SE)
+   ※音声ファイル(mp3等)を用意する場合は、下記の変数にURLを設定してください。
+   ※空欄("")の場合は、Web Audio APIを使った電子音が自動で鳴ります。
+========================================================= */
+const SOUND_FILES = {
+    bgm: "",       // 例: "assets/bgm.mp3"
+    correct: "",   // 例: "assets/correct.mp3"
+    wrong: ""      // 例: "assets/wrong.mp3"
+};
 
-  function initAudio() {
-    if (!audioCtx) {
-      audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+const SoundManager = {
+    isSoundOn: true,
+    audioCtx: null,
+    bgmOscillators: [],
+    bgmInterval: null,
+    externalAudios: { bgm: null, correct: null, wrong: null },
+
+    init() {
+        if (SOUND_FILES.bgm) this.externalAudios.bgm = new Audio(SOUND_FILES.bgm);
+        if (SOUND_FILES.correct) this.externalAudios.correct = new Audio(SOUND_FILES.correct);
+        if (SOUND_FILES.wrong) this.externalAudios.wrong = new Audio(SOUND_FILES.wrong);
+        
+        if (this.externalAudios.bgm) this.externalAudios.bgm.loop = true;
+        
+        if (!this.audioCtx && (!SOUND_FILES.bgm || !SOUND_FILES.correct || !SOUND_FILES.wrong)) {
+            const AudioContext = window.AudioContext || window.webkitAudioContext;
+            this.audioCtx = new AudioContext();
+        }
+    },
+    toggle() {
+        this.isSoundOn = !this.isSoundOn;
+        if (!this.isSoundOn) this.stopBGM();
+        else this.startBGM();
+        return this.isSoundOn;
+    },
+    startBGM() {
+        if (!this.isSoundOn) return;
+        if (this.audioCtx && this.audioCtx.state === 'suspended') this.audioCtx.resume();
+        
+        if (this.externalAudios.bgm) {
+            this.externalAudios.bgm.play().catch(e => console.log(e));
+        } else if (this.audioCtx && !this.bgmInterval) {
+            // 内蔵BGMジェネレータ（シンプルなループ）
+            const notes = [261.63, 329.63, 392.00, 523.25]; // C, E, G, C
+            let step = 0;
+            this.bgmInterval = setInterval(() => {
+                if(!this.isSoundOn) return;
+                const osc = this.audioCtx.createOscillator();
+                const gain = this.audioCtx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = notes[step % notes.length] / 2;
+                osc.connect(gain);
+                gain.connect(this.audioCtx.destination);
+                gain.gain.setValueAtTime(0.015, this.audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.audioCtx.currentTime + 0.4);
+                osc.start();
+                osc.stop(this.audioCtx.currentTime + 0.4);
+                step++;
+            }, 600);
+        }
+    },
+    stopBGM() {
+        if (this.externalAudios.bgm) this.externalAudios.bgm.pause();
+        if (this.bgmInterval) { clearInterval(this.bgmInterval); this.bgmInterval = null; }
+    },
+    playSE(type) {
+        if (!this.isSoundOn) return;
+        
+        if (this.externalAudios[type]) {
+            this.externalAudios[type].currentTime = 0;
+            this.externalAudios[type].play().catch(e=>console.log(e));
+            return;
+        }
+        
+        if (!this.audioCtx) return;
+        const osc = this.audioCtx.createOscillator();
+        const gain = this.audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(this.audioCtx.destination);
+        
+        if (type === 'correct') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, this.audioCtx.currentTime); 
+            osc.frequency.setValueAtTime(1108.73, this.audioCtx.currentTime + 0.1); 
+            gain.gain.setValueAtTime(0.3, this.audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 0.5);
+            osc.start(); osc.stop(this.audioCtx.currentTime + 0.5);
+        } else {
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, this.audioCtx.currentTime);
+            osc.frequency.setValueAtTime(100, this.audioCtx.currentTime + 0.2);
+            gain.gain.setValueAtTime(0.3, this.audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, this.audioCtx.currentTime + 0.4);
+            osc.start(); osc.stop(this.audioCtx.currentTime + 0.4);
+        }
     }
-    if (audioCtx.state === 'suspended') {
-      audioCtx.resume();
-    }
-  }
+};
 
-  // 控えめなBGMループ
-  function startBGM() {
-    if (bgmInterval) return;
-    const notes = [261.63, 329.63, 392.00, 523.25]; // C, E, G, C
-    let step = 0;
-    
-    bgmInterval = setInterval(() => {
-      if (!audioCtx) return;
-      const osc = audioCtx.createOscillator();
-      const gain = audioCtx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.value = notes[step % notes.length] / 2;
-      
-      osc.connect(gain);
-      gain.connect(audioCtx.destination);
-      
-      gain.gain.setValueAtTime(0.02, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-      
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.4);
-      step++;
-    }, 500);
-  }
 
-  function stopBGM() {
-    if (bgmInterval) {
-      clearInterval(bgmInterval);
-      bgmInterval = null;
-    }
-  }
-
-  function playSE(type) {
-    if (!audioCtx) return;
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    
-    if (type === 'correct') {
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(880, audioCtx.currentTime); 
-      osc.frequency.setValueAtTime(1108.73, audioCtx.currentTime + 0.1); 
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.5);
-    } else if (type === 'wrong') {
-      osc.type = 'sawtooth';
-      osc.frequency.setValueAtTime(150, audioCtx.currentTime);
-      osc.frequency.setValueAtTime(100, audioCtx.currentTime + 0.2);
-      gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
-      osc.start();
-      osc.stop(audioCtx.currentTime + 0.4);
-    }
-  }
-
-  // --- Quiz Data ---
-  const wordsData = [
+/* =========================================================
+   問題データ (30問: 難易度1〜5 各6問)
+========================================================= */
+const allWordsData = [
     // Level 1
     { word: "Apple", meaning: "A round fruit with red or green skin and a whitish interior.", level: 1 },
     { word: "Dog", meaning: "A common animal with four legs, often kept by people as a pet.", level: 1 },
@@ -317,122 +413,196 @@
     { word: "Cacophony", meaning: "An unpleasant mixture of loud sounds.", level: 5 },
     { word: "Serendipity", meaning: "The fact of finding interesting or valuable things by chance.", level: 5 },
     { word: "Eloquent", meaning: "Giving a clear, strong message; expressing ideas clearly and well.", level: 5 }
-  ];
+];
 
-  // --- Game Logic ---
-  let currentQuestions = [];
-  let currentQIndex = 0;
-  let score = 0;
-  let isAnswering = false;
 
-  function showScreen(screenId) {
-    document.querySelectorAll('.screen').forEach(el => el.classList.remove('active'));
-    document.getElementById(screenId).classList.add('active');
-  }
+/* =========================================================
+   ゲームロジック
+========================================================= */
+let currentQuestions = [];
+let currentQIndex = 0;
+let score = 0;
+let isAnswering = false;
+let timerInterval;
+let timeLeft;
+const TIME_LIMIT = 30; // 制限時間30秒
+const POINTS_PER_LEVEL = 11; // 満点990を配分: 全問正解時の合計=990 (各レベルの配点は レベル×11点)
 
-  function startApp() {
-    initAudio();
-    startBGM();
-    showScreen('level-screen');
-  }
+const screens = {
+    home: document.getElementById('screen-home'),
+    game: document.getElementById('screen-game'),
+    result: document.getElementById('screen-result')
+};
 
-  function shuffle(array) {
-    let currentIndex = array.length, randomIndex;
-    while (currentIndex != 0) {
-      randomIndex = Math.floor(Math.random() * currentIndex);
-      currentIndex--;
-      [array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]];
+function switchScreen(screenName) {
+    Object.values(screens).forEach(s => s.classList.remove('active'));
+    screens[screenName].classList.add('active');
+}
+
+function shuffle(array) {
+    return array.slice().sort(() => Math.random() - 0.5);
+}
+
+// ゲーム開始
+function startGame() {
+    SoundManager.init();
+    SoundManager.startBGM();
+
+    let selected = [];
+    // レベル1〜5を各6問抽出
+    for (let i = 1; i <= 5; i++) {
+        let diffQuestions = allWordsData.filter(q => q.level === i);
+        selected = selected.concat(shuffle(diffQuestions).slice(0, 6));
     }
-    return array;
-  }
-
-  function selectLevel(level) {
-    document.getElementById('game-header').innerText = `Level ${level}`;
     
-    // 該当レベルの問題を抽出
-    currentQuestions = wordsData.filter(q => q.level === level);
-    currentQuestions = shuffle(currentQuestions);
+    // 難易度順に並べる
+    currentQuestions = selected.sort((a, b) => a.level - b.level);
     
     currentQIndex = 0;
     score = 0;
     
-    showScreen('game-screen');
+    switchScreen('game');
     loadQuestion();
-  }
+}
 
-  function loadQuestion() {
+// 問題表示
+function loadQuestion() {
     isAnswering = false;
-    document.getElementById('q-counter').innerText = `Q: ${currentQIndex + 1} / ${currentQuestions.length}`;
-    document.getElementById('score-display').innerText = `Score: ${score}`;
-    
-    const qData = currentQuestions[currentQIndex];
-    document.getElementById('question-word').innerText = qData.word;
-    
-    // 不正解のダミー選択肢を「全データの中から正解以外」から3つランダムに選ぶ
-    const otherMeanings = wordsData
-      .filter(item => item.word !== qData.word)
-      .map(item => item.meaning);
+    clearInterval(timerInterval);
+    timeLeft = TIME_LIMIT;
+    updateTimerUI();
+
+    const q = currentQuestions[currentQIndex];
+    document.getElementById('question-counter').textContent = `Q: ${currentQIndex + 1} / 30`;
+    document.getElementById('difficulty-display').textContent = `Level: ${q.level}`;
+    document.getElementById('question-word').textContent = q.word;
+
+    // 不正解のダミー選択肢を全体のリストから3つランダムに選定
+    const otherMeanings = allWordsData
+        .filter(item => item.word !== q.word)
+        .map(item => item.meaning);
     
     const shuffledOthers = shuffle(otherMeanings);
-    const choices = [qData.meaning, shuffledOthers[0], shuffledOthers[1], shuffledOthers[2]];
-    
-    // 選択肢をシャッフル
+    const choices = [q.meaning, shuffledOthers[0], shuffledOthers[1], shuffledOthers[2]];
     const finalChoices = shuffle(choices);
-    
+
     const container = document.getElementById('choices-container');
     container.innerHTML = '';
-    
-    finalChoices.forEach(choiceText => {
-      const btn = document.createElement('button');
-      btn.className = 'choice-btn';
-      btn.innerText = choiceText;
-      btn.onclick = () => checkAnswer(choiceText, qData.meaning, btn);
-      container.appendChild(btn);
-    });
-  }
 
-  function checkAnswer(selected, correct, btnElement) {
+    finalChoices.forEach(choiceText => {
+        const btn = document.createElement('button');
+        btn.className = 'choice-btn';
+        btn.textContent = choiceText;
+        btn.onclick = () => handleAnswer(choiceText === q.meaning, btn);
+        container.appendChild(btn);
+    });
+
+    // タイマー開始
+    timerInterval = setInterval(() => {
+        timeLeft -= 0.1;
+        updateTimerUI();
+        if (timeLeft <= 0) {
+            timeLeft = 0;
+            updateTimerUI();
+            handleAnswer(false, null, true); // タイムアウト
+        }
+    }, 100);
+}
+
+function updateTimerUI() {
+    const textEl = document.getElementById('timer-text');
+    const barEl = document.getElementById('timer-bar');
+    
+    textEl.textContent = Math.ceil(timeLeft) + ".0";
+    const percent = (timeLeft / TIME_LIMIT) * 100;
+    barEl.style.width = `${percent}%`;
+
+    if (percent <= 20) barEl.style.backgroundColor = 'var(--incorrect-color)';
+    else barEl.style.backgroundColor = 'var(--primary-color)';
+}
+
+// 解答判定と演出
+function handleAnswer(isCorrect, btnElement, isTimeout = false) {
     if (isAnswering) return;
     isAnswering = true;
-    
-    const feedback = document.getElementById('feedback');
-    
-    if (selected === correct) {
-      score++;
-      playSE('correct');
-      btnElement.style.backgroundColor = '#d4edda';
-      btnElement.style.borderColor = '#28a745';
-      feedback.innerText = '⭕️';
-      feedback.className = 'feedback correct show';
-    } else {
-      playSE('wrong');
-      btnElement.style.backgroundColor = '#f8d7da';
-      btnElement.style.borderColor = '#dc3545';
-      feedback.innerText = '❌';
-      feedback.className = 'feedback wrong show';
-    }
-    
-    setTimeout(() => {
-      feedback.className = 'feedback'; // アニメーションリセット
-      currentQIndex++;
-      if (currentQIndex < currentQuestions.length) {
-        loadQuestion();
-      } else {
-        showResult();
-      }
-    }, 1000);
-  }
+    clearInterval(timerInterval);
 
-  function showResult() {
-    document.getElementById('final-score').innerText = `${score} / ${currentQuestions.length}`;
-    let msg = "";
-    if (score === currentQuestions.length) msg = "Perfect! Excellent job!!🎉";
-    else if (score >= currentQuestions.length / 2) msg = "Great job! Keep it up!👍";
-    else msg = "Good effort! Let's try again!💪";
+    const q = currentQuestions[currentQIndex];
+    const mark = document.getElementById('feedback-mark');
+
+    if (isCorrect) {
+        score += q.level * POINTS_PER_LEVEL;
+        SoundManager.playSE('correct');
+        if (btnElement) {
+            btnElement.style.backgroundColor = '#d4edda';
+            btnElement.style.borderColor = '#28a745';
+        }
+        mark.textContent = '⭕️';
+        mark.className = 'feedback-mark mark-correct show';
+    } else {
+        SoundManager.playSE('wrong');
+        if (btnElement) {
+            btnElement.style.backgroundColor = '#f8d7da';
+            btnElement.style.borderColor = '#dc3545';
+        }
+        mark.textContent = isTimeout ? '⏰' : '❌';
+        mark.className = 'feedback-mark mark-incorrect show';
+        
+        // 正解のボタンをハイライト
+        const buttons = document.querySelectorAll('.choice-btn');
+        buttons.forEach(b => {
+            if (b.textContent === q.meaning) {
+                b.style.border = '2px solid var(--correct-color)';
+                b.style.backgroundColor = '#f0fff4';
+            }
+        });
+    }
+
+    // 演出後、次の問題またはリザルトへ
+    setTimeout(() => {
+        mark.className = 'feedback-mark';
+        currentQIndex++;
+        if (currentQIndex < currentQuestions.length) {
+            loadQuestion();
+        } else {
+            finishGame();
+        }
+    }, 1200);
+}
+
+// ゲーム終了・リザルト
+function finishGame() {
+    clearInterval(timerInterval);
+    SoundManager.stopBGM();
     
-    document.getElementById('result-message').innerText = msg;
-    showScreen('result-screen');
-  }
+    document.getElementById('final-score').textContent = score;
+    let comment = "";
+    if (score === 990) comment = "Perfect Score! Excellent!!🎉";
+    else if (score >= 700) comment = "Great job! Very high score!👍";
+    else if (score >= 400) comment = "Good effort! Keep practicing!💪";
+    else comment = "Let's review and try again!📚";
+    
+    document.getElementById('score-comment').textContent = comment;
+    switchScreen('result');
+}
+
+/* =========================================================
+   イベントリスナーの登録
+========================================================= */
+document.getElementById('btn-start').addEventListener('click', startGame);
+document.getElementById('btn-home-from-result').addEventListener('click', () => switchScreen('home'));
+
+document.getElementById('btn-exit').addEventListener('click', () => {
+    if (confirm("Are you sure you want to quit and view your score?")) {
+        finishGame();
+    }
+});
+
+document.getElementById('btn-sound').addEventListener('click', (e) => {
+    const isOn = SoundManager.toggle();
+    e.currentTarget.style.opacity = isOn ? "1" : "0.5";
+});
+
 </script>
 </body>
 </html>
